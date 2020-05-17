@@ -1,6 +1,5 @@
 *.iml
 .idea/
 .aws-sam/
-packaged.yaml
+output-template.yaml
 node_modules/
-package-lock.json

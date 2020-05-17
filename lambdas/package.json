@@ -1,8 +1,6 @@
 {
-  "name": "on-connect",
+  "name": "infra_for_aws_simple_chat",
   "version": "1.0.0",
-  "description": "onconnect example for WebSockets on API Gateway",
-  "main": "src/app.js",
   "author": "SAM CLI",
   "license": "MIT",
   "dependencies": {
