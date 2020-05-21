@@ -1,8 +1,11 @@
 import React from 'react';
+import { ChatView } from "./chat/ChatView";
 
 function App() {
   return (
-      <div>Hello</div>
+    <React.Fragment>
+      <ChatView/>
+    </React.Fragment>
   );
 }
 
