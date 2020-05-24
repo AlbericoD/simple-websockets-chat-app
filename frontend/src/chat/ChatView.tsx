@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button, Input } from "@material-ui/core";
 import makeStyles from "@material-ui/core/styles/makeStyles";
 
-const WEB_SOCKET_URL = "wss://livu5ax5n3.execute-api.us-east-1.amazonaws.com/Prod"
+const WEB_SOCKET_URL = "wss://133gqqm9wg.execute-api.us-east-1.amazonaws.com/Prod";
 
 enum MESSAGE_TYPE {
   SYSTEM_MESSAGE,
@@ -30,12 +30,36 @@ const useStyles = makeStyles({
 export const ChatView = () => {
   const [messageList, setMessageList] = useState<Message[]>([]);
 
-  const websocket = useRef<WebSocket>(new WebSocket(WEB_SOCKET_URL));
-  useEffect(() => {
-    const addMessage = (message: Message) => {
-      setMessageList(prev => [...prev, message]);
-    }
+  const websocket = useRef<WebSocket>(null as any);
 
+  const addMessage = (message: Message) => {
+    setMessageList(prev => [...prev, message]);
+  }
+
+  const [inputMessage, setInputMessage] = useState('');
+
+  const sendMessage = () => {
+    if (inputMessage && inputMessage.trim().length > 0) {
+      doSendMessage({
+        data: inputMessage.trim()
+      })
+      setInputMessage('');
+    }
+  }
+
+  const doSendMessage = (data: any) => {
+    const ACTION = "sendmessage";
+    const message = {
+      action: ACTION,
+      ...data
+    };
+    if (inputMessage && inputMessage.trim().length > 0) {
+      websocket.current && websocket.current.send(JSON.stringify(message));
+    }
+  }
+
+  useEffect(() => {
+    websocket.current = new WebSocket(WEB_SOCKET_URL);
     addMessage({ type: MESSAGE_TYPE.SYSTEM_MESSAGE, message: 'Connecting...' });
     websocket.current.onopen = () => {
       addMessage({
@@ -46,36 +70,31 @@ export const ChatView = () => {
     websocket.current.onclose = () => {
       addMessage({
         type: MESSAGE_TYPE.SYSTEM_MESSAGE,
-        message: 'You are disconnected.'
+        message: 'You are disconnected. Refresh the page to reconnect.'
       });
     }
     websocket.current.onerror = (error) => {
       addMessage({
         type: MESSAGE_TYPE.SYSTEM_ERROR,
-        message: `Error while connecting... ${error && error.toString()}`
+        message: `Error while connecting... ${error && error.toString()}. Refresh the page to reconnect.`
       });
     }
     websocket.current.onmessage = (event) => {
-      addMessage({
+      let messageData = {
         type: MESSAGE_TYPE.USER_MESSAGE,
         message: event.data
-      });
+      };
+      try {
+        messageData = JSON.parse(event.data);
+      } catch (error) {
+        /* ignore */
+      }
+
+      addMessage(messageData);
     }
 
     return () => websocket.current.close();
   }, []);
-
-  const [inputMessage, setInputMessage] = useState('');
-
-  const sendMessage = () => {
-    if (inputMessage && inputMessage.trim().length > 0) {
-      websocket.current && websocket.current.send(JSON.stringify({
-        action: "sendmessage",
-        data: inputMessage.trim()
-      }));
-      setInputMessage('');
-    }
-  }
 
   const styles = useStyles();
   const getMessageClassName = (messageType: MESSAGE_TYPE) => {
