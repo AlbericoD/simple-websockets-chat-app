@@ -3,3 +3,4 @@
 .aws-sam/
 output-template.yaml
 node_modules/
+built

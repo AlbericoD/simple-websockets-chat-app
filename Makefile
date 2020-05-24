@@ -21,7 +21,7 @@ infra.deploy: infra.package
 		--capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
 
 
-infra.package: infra.artifact-bucket
+infra.package: infra.build infra.artifact-bucket
 	@echo "####################"
 	@echo "  Packaging Infra"
 	@echo "####################"
@@ -30,6 +30,12 @@ infra.package: infra.artifact-bucket
 		--s3-bucket $(ARTIFACT_BUCKET) \
 		--template template.yaml \
 		--output-template output-template.yaml
+
+infra.build:
+	@echo "####################"
+	@echo "  Build Infra"
+	@echo "####################"
+	cd lambdas && npm install && npm run compile
 
 infra.artifact-bucket:
 	@echo "\n\n########################################"

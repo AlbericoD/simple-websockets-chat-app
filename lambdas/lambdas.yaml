@@ -7,16 +7,6 @@ Description: >
   functions needed to demonstrate the Websocket protocol on API Gateway.
 
 Resources:
-  ConnectionDDBTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      AttributeDefinitions:
-        - AttributeName: "connectionId"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "connectionId"
-          KeyType: "HASH"
-      BillingMode: PAY_PER_REQUEST
   SimpleChatWebSocket:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -45,28 +35,7 @@ Resources:
       IntegrationType: AWS_PROXY
       IntegrationUri: 
         Fn::Sub:
-            arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnConnectFunction.Arn}/invocations
-  OnConnectFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: onconnect/
-      Handler: app.handler
-      MemorySize: 256
-      Runtime: nodejs12.x
-      Environment:
-        Variables:
-          TABLE_NAME: !Ref ConnectionDDBTable
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConnectionDDBTable
-  OnConnectPermission:
-    Type: AWS::Lambda::Permission
-    DependsOn:
-      - SimpleChatWebSocket
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref OnConnectFunction
-      Principal: apigateway.amazonaws.com
+            arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SendMessageFunction.Arn}/invocations
 
   # onDisconnect
   DisconnectRoute:
@@ -88,28 +57,7 @@ Resources:
       IntegrationType: AWS_PROXY
       IntegrationUri: 
         Fn::Sub:
-            arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnDisconnectFunction.Arn}/invocations
-  OnDisconnectPermission:
-    Type: AWS::Lambda::Permission
-    DependsOn:
-      - SimpleChatWebSocket
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref OnDisconnectFunction
-      Principal: apigateway.amazonaws.com
-  OnDisconnectFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ondisconnect/
-      Handler: app.handler
-      MemorySize: 256
-      Runtime: nodejs12.x
-      Environment:
-        Variables:
-          TABLE_NAME: !Ref ConnectionDDBTable
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConnectionDDBTable
+            arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SendMessageFunction.Arn}/invocations
   # onSend
   SendRoute:
     Type: AWS::ApiGatewayV2::Route
@@ -131,19 +79,16 @@ Resources:
       IntegrationUri: 
         Fn::Sub:
             arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SendMessageFunction.Arn}/invocations
+
+  # Common handler functions for all routeKeys
   SendMessageFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: sendmessage/
-      Handler: app.handler
+      CodeUri: built
+      Handler: sendmessage/app.handler
       MemorySize: 256
       Runtime: nodejs12.x
-      Environment:
-        Variables:
-          TABLE_NAME: !Ref ConnectionDDBTable
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConnectionDDBTable
         - Statement:
             - Effect: Allow
               Action:
@@ -176,17 +121,6 @@ Resources:
       ApiId: !Ref SimpleChatWebSocket
 
 Outputs:
-  ConnectionsTableArn:
-    Description: "Connections table ARN"
-    Value: !GetAtt ConnectionDDBTable.Arn
-
-  OnConnectFunctionArn:
-    Description: "OnConnect function ARN"
-    Value: !GetAtt OnConnectFunction.Arn
-
-  OnDisconnectFunctionArn:
-    Description: "OnDisconnect function ARN"
-    Value: !GetAtt OnDisconnectFunction.Arn
 
   SendMessageFunctionArn:
     Description: "SendMessage function ARN"
