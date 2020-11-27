@@ -37,22 +37,22 @@ exports.handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyRe
 
   // connect
   if (routeKey === ROUTE_KEY_CONNECT) {
-    MessageCache.addNewConnection(connectionId);
-    console.log(`New connection comes int, adding ${connectionId}, size: ${MessageCache.getAllConnections().length}`);
+    await MessageCache.addNewConnection(connectionId);
+    console.log(`New connection comes in, adding ${connectionId}`);
     return { statusCode: 200, body: 'Connected' };
   }
 
   // disconnect
   if (routeKey === ROUTE_KEY_DISCONNECT) {
-    MessageCache.removeConnection(connectionId)
-    console.log(`Disconnection, deleting ${connectionId}, size: ${MessageCache.getAllConnections().length}`);
+    await MessageCache.removeConnection(connectionId)
+    console.log(`Disconnection, deleting ${connectionId}`);
     return { statusCode: 200, body: 'Connected' };
   }
   
   const { data } = JSON.parse(event.body);
 
-  MessageCache.addNewConnection(connectionId);
-  const connectionData = MessageCache.getAllConnections();
+  await MessageCache.addNewConnection(connectionId);
+  const connectionData = await MessageCache.getAllConnections();
 
   const postCalls = connectionData.map(async (connectionId) => {
     try {
@@ -62,8 +62,8 @@ exports.handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyRe
       }).promise();
     } catch (e) {
       if (e.statusCode === 410) {
-        MessageCache.removeConnection(connectionId)
-        console.log(`Found stale connection, deleting ${connectionId}, size: ${MessageCache.getAllConnections().length}`);
+        await MessageCache.removeConnection(connectionId)
+        console.log(`Found stale connection, deleting ${connectionId}`);
       } else {
         throw e;
       }

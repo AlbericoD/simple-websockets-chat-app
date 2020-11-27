@@ -7,6 +7,90 @@ Description: >
   functions needed to demonstrate the Websocket protocol on API Gateway.
 
 Resources:
+
+  #################### NAT, to give VPC lambda access to APIG
+  # NAT
+  GatewayNAT:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: eipalloc-045a84dd57b95dde7
+      SubnetId: subnet-7e1f7c50
+
+  # Route Table for NAT
+  RouteTableNAT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: vpc-d32594a9
+  SubnetRouteTableAssociationNAT:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: subnet-7e1f7c50
+      RouteTableId: !Ref RouteTableNAT
+  RouteNAT:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableNAT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: igw-553dd92e
+  # Route Table for Non-NAT subnets
+  RouteTableLambda:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: vpc-d32594a9
+  SubnetRouteTableAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: subnet-7a983044
+      RouteTableId: !Ref RouteTableLambda
+  SubnetRouteTableAssociationB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: subnet-9237699d
+      RouteTableId: !Ref RouteTableLambda
+  SubnetRouteTableAssociationC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: subnet-b5380cff
+      RouteTableId: !Ref RouteTableLambda
+  SubnetRouteTableAssociationD:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: subnet-d310718f
+      RouteTableId: !Ref RouteTableLambda
+  SubnetRouteTableAssociationE:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: subnet-ef3f5b88
+      RouteTableId: !Ref RouteTableLambda
+  RouteLambda:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTableLambda
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: igw-553dd92e
+
+  #################
+  # ElasticCache
+  ElasticacheSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Elasticache Security Group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '11211'
+          ToPort: '11211'
+  ElasticacheCluster:
+    Type: 'AWS::ElastiCache::CacheCluster'
+    Properties:
+      AutoMinorVersionUpgrade: 'true'
+      Engine: memcached
+      CacheNodeType: cache.t3.micro
+      NumCacheNodes: '1'
+      VpcSecurityGroupIds:
+        - !GetAtt
+          - ElasticacheSecurityGroup
+          - GroupId
+
   SimpleChatWebSocket:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -88,6 +172,12 @@ Resources:
       Handler: sendmessage/app.handler
       MemorySize: 256
       Runtime: nodejs12.x
+      Layers:
+        - !Ref SendMessageFunctionLibsLayer
+      Environment:
+        Variables:
+          CACHE_ADDRESS: !GetAtt ElasticacheCluster.ConfigurationEndpoint.Address
+          CACHE_PORT: !GetAtt ElasticacheCluster.ConfigurationEndpoint.Port
       Policies:
         - Statement:
             - Effect: Allow
@@ -95,6 +185,17 @@ Resources:
                 - 'execute-api:ManageConnections'
               Resource:
                 - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SimpleChatWebSocket}/*'
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt
+            - ElasticacheSecurityGroup
+            - GroupId
+        SubnetIds:
+          - subnet-7a983044
+          - subnet-9237699d
+          - subnet-b5380cff
+          - subnet-d310718f
+          - subnet-ef3f5b88
   SendMessagePermission:
     Type: AWS::Lambda::Permission
     DependsOn:
@@ -103,7 +204,14 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref SendMessageFunction
       Principal: apigateway.amazonaws.com
-
+  SendMessageFunctionLibsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: SendMessageFunctionLibsLayer
+      Description: Dependencies for the SendMessageFunction
+      ContentUri: lib/.
+      CompatibleRuntimes:
+        - nodejs12.x
   Deployment:
     Type: AWS::ApiGatewayV2::Deployment
     DependsOn:

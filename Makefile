@@ -3,28 +3,36 @@ STACK_NAME ?= $(USER)-aws-chat
 ARTIFACT_BUCKET ?= artifacts-$(USER)-$(REGION)
 
 all: infra.deploy
-	@echo "#####################"
+	@echo "########################################"
 	@echo "  Deploy completed"
-	@echo "#####################"
+	@echo "########################################"
 	aws cloudformation describe-stacks \
 		--region $(REGION) \
 		--stack-name $(STACK_NAME)
 
-infra.deploy: infra.package
-	@echo "####################"
+infra.deploy: infra.lib.layer infra.package
+	@echo "########################################"
 	@echo "  Deploying Infra"
-	@echo "####################"
+	@echo "########################################"
 	aws cloudformation deploy \
 		--region $(REGION) \
 		--stack-name $(STACK_NAME) \
 		--template output-template.yaml \
 		--capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
 
+infra.lib.layer:
+	@echo "########################################"
+	@echo "     Install Production Dependencies"
+	@echo "########################################"
+	cd lambdas && \
+		rm -rf lib && mkdir -p lib/nodejs && \
+		cp package.json lib/nodejs && \
+		cd lib/nodejs && npm install --production
 
 infra.package: infra.build infra.artifact-bucket
-	@echo "####################"
+	@echo "########################################"
 	@echo "  Packaging Infra"
-	@echo "####################"
+	@echo "########################################"
 	aws cloudformation package \
 		--region $(REGION) \
 		--s3-bucket $(ARTIFACT_BUCKET) \
@@ -32,13 +40,13 @@ infra.package: infra.build infra.artifact-bucket
 		--output-template output-template.yaml
 
 infra.build:
-	@echo "####################"
+	@echo "########################################"
 	@echo "  Build Infra"
-	@echo "####################"
+	@echo "########################################"
 	cd lambdas && npm install && npm run compile
 
 infra.artifact-bucket:
-	@echo "\n\n########################################"
+	@echo "########################################"
 	@echo "  Creating artifact bucket"
 	@echo "########################################"
 	aws s3api create-bucket \
